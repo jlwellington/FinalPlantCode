@@ -1,0 +1,217 @@
+#### Final Model ####
+
+## Growth is represented by an oscillating function
+## J1 includes feedback sigmoid
+## J3 includes feedback sigmoid
+
+
+
+## Packages to import
+
+#IMPORT
+import sys
+import numpy
+import numpy as np
+import math
+import scipy
+import os
+import argparse
+from scipy.optimize import fsolve
+from scipy.optimize import root
+from scipy.integrate import odeint
+from scipy.integrate import solve_ivp
+import pandas as pd
+import matplotlib.pyplot as plt
+###########
+
+
+### Variables to Adjust ###
+
+days = 5  # total days to run simulation
+Fe_s_list = [0.1,0.2,0.3,0.5,0.7,1,3,5,7,10,15,20]  # uM  Concentration(s) in the soil
+
+h = days * 24  # hours
+T = 60 * h # total minutes
+t0 = 0  # starting 
+delta_t = 30 # minutes, interval step
+t = np.arange(t0, T, delta_t)
+
+
+## Parameters ##
+V1 = 1.393502     #(uM*ul)/min   
+K1 = 6            #uM
+V2 = 8            #(uM*ul)/min
+K2 = 3            #uM
+V3 = 3.33333      #(uM*ul)/min
+K3 = 200          #uM
+V4 = 2.5          #(uM*ul)/min  
+K4 = 2            #uM
+k5 = 0.083333     #ul/min      
+k6 = .1583525     #ul/min . . . parameter when j7 is treated as a constant
+V7 = 0.29988      #(uM*ul)/min
+K7 = 2            #uM
+k8 = 0.001176     #ul/min
+
+
+
+
+
+###### Sigmoids Representing Feedback Responses ##########
+
+#Sig(1) : Soil into Cytosol 
+a1 = 0.1   ## Lower Limit 
+f1 = 3     ## Max Limit
+b1 = 4    ## Steepness
+q1 = ((f1-a1)/(1-a1))-1  ## Related to 0 of sigmoid  
+
+# Sig(3) : Vacuole into Cytosol 
+a3 = .3  ## Lower Limit
+d3 = 1.1 ## Related to 0 and steepness 
+f3 = 5   ##Max Limit
+b3 = (3-a3)**(-1/d3)  ## Steepnes
+c3 = (1-a3)**(-1/d3) -(3-a3)**(-1/d3) ## Related to 0 of sigmoid
+sig3_list = []
+
+#Sig(6) : Apoplast into Leaves, representing growth
+a6 = 0.7  ## Lower Limit 
+f6 = 1.5  ## Max Limit 
+b6 = 4    ## Steepness
+q6 = ((f6-a6)/(1-a6))-1  ## Related to 0 of sigmoid 
+
+### J_al Constant Oscillation
+j7b = 0.633333   ##base flux for growth 
+period  = 24*60 # min
+omega   = 2*math.pi/period
+amp = 10 ## vary to change amplitude
+A   = j7b/amp   ## amplitude 
+
+
+# Set up data frame for data storage
+cyt_data = pd.DataFrame([])
+fe_y = []
+fe_v = []
+fe_x = []
+fe_a = []
+fe_l = []
+fe_p = []
+
+
+################################
+################################
+
+for Fe_s in Fe_s_list:
+    def base_Fe2 (t,Fe):
+        r_y = 1 - Fe[0]  ## Input for sig1 and sig3
+        r_a = 4 - Fe[3]  ## Input for 
+        r_g = Fe[3]-4    ## Input for sig6
+        if r_y <0:
+            sig3 = 1
+            sig3_list.append(sig3)
+        else:
+            sig3 = a3+ (b3 + c3*math.e**(-f3*r_y))**-d3
+            sig3_list.append(sig3)
+        ##Flux Equations
+        J1 = ((V1 * Fe_s)/(K1 + Fe_s)) * (a1+((f1-a1)/(1+q1*math.e**-(b1*r_y))))
+        J2 = (V2 * Fe[0])/(K2 + Fe[0])
+        J3 = ((V3 * Fe[1])/ (K3 + Fe[1])) * sig3
+        J4 = ((V4 * Fe[0]) / (K4 + Fe[0]))
+        J5 = k5 * Fe[2]
+        J6 = (a6+((f6-a6)/(1+q6*math.e**(-b6*r_g))))*(1+ A*np.sin(omega*t))  ##growth represented as osciallating sigmoid
+        J7 = ((V7 * Fe[3])/ (K7 + Fe[3]))
+        J8 = k8 * Fe[4]
+        #System of Differential Equations
+        F_y =  J1 + J8 + J3 - J4 - J2
+        F_v = J2 - J3
+        F_x = J4 - J5
+        F_a = J5 - J6 - J7
+        F_p = J7 - J8
+        F = [F_y,F_v, F_x , F_a, F_p]
+        return F;
+    ## Initial Concentrations in each compartment
+    Fe_y = 1
+    Fe_v = 300
+    Fe_x = 10
+    Fe_a = 4
+    Fe_p = 170
+    org = [1,300,10,4,170]
+    initial = np.array([org])
+    names = ["Cytosol","Vaculoe","Xylem","Apoplast","Phloem"]
+
+    ##solving the time dependent differential equation
+    sol_list = []
+    times = []
+    for i in range(len(t)-1):
+        solve = solve_ivp(base_Fe2,[t[i],t[i+1]],initial[i],method = 'Radau')
+        sol_list.append(solve.y)
+        times.append(solve.t)
+        temp = (solve.y[:,-1])
+        for k in range(len(temp)):
+            temp[k] = max(temp[k],0)
+        next_initial = np.array([temp.flatten()])
+        initial = np.concatenate((initial,next_initial),axis=0)
+    
+    ####  Organize / Format Data ###
+    times = np.array(times)
+    cyt = []
+    vac = []
+    xyl = []
+    apo = []
+    phl = []
+    r = []
+    for i in range(0,len(initial)):
+        cyt_con = initial[i][0]
+        cyt.append(cyt_con)
+        vac_con = initial[i][1]
+        vac.append(vac_con)
+        xyl_con = initial[i][2]
+        xyl.append(xyl_con)
+        apo_con = initial[i][3]
+        apo.append(apo_con)
+        phl_con = initial[i][4]
+        phl.append(phl_con)
+    fe_y.append(cyt)
+    fe_v.append(vac)
+    fe_x.append(xyl)
+    fe_a.append(apo)
+    fe_p.append(phl)
+
+
+## Preparing data to be stored so it can be graphed
+    
+y_col =[]
+v_col =[]
+x_col =[]
+a_col =[]
+p_col =[]
+
+for i in Fe_s_list:
+    y_col.append("Fe Cyt"+str(i))
+    v_col.append("Fe Vac"+str(i))
+    x_col.append("Fe Xyl"+str(i))
+    a_col.append("Fe Apo"+str(i))
+    p_col.append("Fe Phl"+str(i))
+
+data_y = dict(zip(y_col,fe_y))
+data_v = dict(zip(v_col,fe_v))
+data_x = dict(zip(x_col,fe_x))
+data_a = dict(zip(a_col,fe_a))
+data_p = dict(zip(p_col,fe_p))
+
+df_y=pd.DataFrame(data = data_y)
+df_v=pd.DataFrame(data = data_v)
+df_x=pd.DataFrame(data = data_x)
+df_a=pd.DataFrame(data = data_a)
+df_p=pd.DataFrame(data = data_p)
+df_y.insert(0,"Time",t)
+df_v.insert(0,"Time",t)
+df_x.insert(0,"Time",t)
+df_a.insert(0,"Time",t)
+df_p.insert(0,"Time",t)
+
+
+#df_y.to_csv(r'C:\Users\Jessica\Desktop\Plant_Paper_Codes\Linear_Growth_J1_J3_J8_Response\Excel_Data\model6_\Cyt-days-' + str(days)+'.csv', index = False)
+#df_v.to_csv(r'C:\Users\Jessica\Desktop\Plant_Paper_Codes\Linear_Growth_J1_J3_J8_Response\Excel_Data\model6_\Vac-days-' + str(days)+'.csv', index = False)
+#df_x.to_csv(r'C:\Users\Jessica\Desktop\Plant_Paper_Codes\Linear_Growth_J1_J3_J8_Response\Excel_Data\model6_\Xyl-days-' + str(days)+'.csv', index = False)
+#df_a.to_csv(r'C:\Users\Jessica\Desktop\Plant_Paper_Codes\Linear_Growth_J1_J3_J8_Response\Excel_Data\model6_\Apo-days-' + str(days)+'.csv', index = False)
+#df_p.to_csv(r'C:\Users\Jessica\Desktop\Plant_Paper_Codes\Linear_Growth_J1_J3_J8_Response\Excel_Data\model6_\Phl-days-' + str(days)+'.csv', index = False)
+
