@@ -208,10 +208,15 @@ df_x.insert(0,"Time",t)
 df_a.insert(0,"Time",t)
 df_p.insert(0,"Time",t)
 
+## For saving the code as a .csv file, the structure is r ' FILEPATH \FILENAME')
+## The \FILENAME is included in the code below, the FILEPATH needs to be updated to user's filepath
+## Select/Highlight  FILEPATH and paste entire desired file path. DO NOT REMOVE THE \ . Just copy the FILEPATH text 
+## Example of correct code w/ file path : df_v.to_csv(r'C:\Users\Jessica\Desktop\Plant_Paper_Codes\Excel_Data\Vac-days-' + str(days)+'.csv', index = False)
 
-#df_y.to_csv(r'C:\Users\Jessica\Desktop\Plant_Paper_Codes\Linear_Growth_J1_J3_J8_Response\Excel_Data\model6_\Cyt-days-' + str(days)+'.csv', index = False)
-#df_v.to_csv(r'C:\Users\Jessica\Desktop\Plant_Paper_Codes\Linear_Growth_J1_J3_J8_Response\Excel_Data\model6_\Vac-days-' + str(days)+'.csv', index = False)
-#df_x.to_csv(r'C:\Users\Jessica\Desktop\Plant_Paper_Codes\Linear_Growth_J1_J3_J8_Response\Excel_Data\model6_\Xyl-days-' + str(days)+'.csv', index = False)
-#df_a.to_csv(r'C:\Users\Jessica\Desktop\Plant_Paper_Codes\Linear_Growth_J1_J3_J8_Response\Excel_Data\model6_\Apo-days-' + str(days)+'.csv', index = False)
-#df_p.to_csv(r'C:\Users\Jessica\Desktop\Plant_Paper_Codes\Linear_Growth_J1_J3_J8_Response\Excel_Data\model6_\Phl-days-' + str(days)+'.csv', index = False)
+
+#df_y.to_csv(r'FILEPATH\Cyt-days-' + str(days)+'.csv', index = False)
+#df_v.to_csv(r'FILEPATH\Vac-days-' + str(days)+'.csv', index = False)
+#df_x.to_csv(r'FILEPATH\Xyl-days-' + str(days)+'.csv', index = False)
+#df_a.to_csv(r'FILEPATH\Apo-days-' + str(days)+'.csv', index = False)
+#df_p.to_csv(r'FILEPATH\Phl-days-' + str(days)+'.csv', index = False)
 
